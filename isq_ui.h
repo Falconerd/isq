@@ -70,6 +70,8 @@ typedef union {
 	struct { f32 u, v; };
 	f32 data[2];
 } vec2;
+
+vec2 vec2_zero = { 0, 0 };
 #endif
 
 // You can override this type by defining
@@ -94,6 +96,8 @@ typedef union {
 	struct { f32 r, g, b, a; };
 	f32 data[4];
 } vec4;
+
+vec4 vec4_zero = { 0, 0, 0, 0 };
 #endif
 
 #ifndef ISQ_MAT4_DEFINED
@@ -167,8 +171,8 @@ union isq_ui_sizes {
 	struct isq_ui_size data[2];
 };
 
-struct isq_ui_rect {
-	vec4 rect;
+struct isq_ui_vertex {
+	vec2 vertices[6];
 	vec4 color;
 };
 
@@ -178,19 +182,21 @@ void isq_ui_begin(void);
 void isq_ui_end(void);
 
 // Returns id.
-u32 isq_ui_box_create(vec2 position, vec4 background_color, union isq_ui_sizes semantic_size, enum isq_ui_box_flags flags);
-// Returns 0 on success.
-u8 isq_ui_box_set_flags(u32 id, enum isq_ui_box_flags flags);
+u32 isq_ui_box_create(enum isq_ui_box_flags flags);
+
 // Set the current parent on the stack.
-// Returns 0 on success.
 u8 isq_ui_box_parent_push(u32 id);
+
 // Set the current parent to the last pushed parent.
-// Returns 0 on success.
 u8 isq_ui_box_parent_pop(void);
 
-u8 isq_ui_box_set_size(u32 id, vec2 size);
+// The following functions all return 0 on
+// success. They are simple setters.
+u8 isq_ui_box_set_flags(u32 id, enum isq_ui_box_flags flags);
+u8 isq_ui_box_set_semantic_size(u32 id, union isq_ui_sizes semantic_size);
 u8 isq_ui_box_set_position(u32 id, vec2 position);
 u8 isq_ui_box_set_background_color(u32 id, vec4 color);
+
 
 #endif
 
@@ -224,9 +230,9 @@ static u32 isq_ui_box_array_count = 0;
 
 static u32 isq_ui_current_parent = (u32)-1;
 
-static struct isq_ui_rect *isq_ui_rect_buffer = NULL;
-static u32 isq_ui_rect_buffer_capacity = 0;
-static u32 isq_ui_rect_buffer_count = 0;
+static struct isq_ui_vertex *isq_ui_vertex_buffer = NULL;
+static u32 isq_ui_vertex_buffer_capacity = 0;
+static u32 isq_ui_vertex_buffer_count = 0;
 
 static char *buffer_from_file(const char *path)
 {
@@ -305,8 +311,8 @@ static void isq_ui_init(void)
 
 	isq_ui_box_array = ISQ_MALLOC(sizeof(struct isq_ui_box) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
 	isq_ui_box_array_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
-	isq_ui_rect_buffer = ISQ_MALLOC(sizeof(struct isq_ui_rect) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
-	isq_ui_rect_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
+	isq_ui_vertex_buffer = ISQ_MALLOC(sizeof(struct isq_ui_vertex) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
+	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
 }
 
 static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
@@ -319,14 +325,19 @@ static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
 
 static void isq_ui_enqueue_rect(vec4 rect, vec4 color)
 {
-	if (isq_ui_rect_buffer_count == isq_ui_rect_buffer_capacity) {
-		isq_ui_rect_buffer_capacity *= 2;
-		isq_ui_rect_buffer = ISQ_REALLOC(isq_ui_rect_buffer, sizeof(struct isq_ui_rect) * isq_ui_rect_buffer_capacity);
+	if (isq_ui_vertex_buffer_count == isq_ui_vertex_buffer_capacity) {
+		isq_ui_vertex_buffer_capacity *= 2;
+		isq_ui_vertex_buffer = ISQ_REALLOC(isq_ui_vertex_buffer, sizeof(struct isq_ui_vertex) * isq_ui_vertex_buffer_capacity);
 	}
 
-	isq_ui_rect_buffer[isq_ui_rect_buffer_count].rect = rect;
-	isq_ui_rect_buffer[isq_ui_rect_buffer_count].color = color;
-	isq_ui_rect_buffer_count++;
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[0] = (vec2){ rect.x, rect.y };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[1] = (vec2){ rect.z, rect.y };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[2] = (vec2){ rect.z, rect.w };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[3] = (vec2){ rect.x, rect.y };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[4] = (vec2){ rect.w, rect.z };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].vertices[5] = (vec2){ rect.x, rect.z };
+	isq_ui_vertex_buffer[isq_ui_vertex_buffer_count].color = color;
+	isq_ui_vertex_buffer_count++;
 }
 
 static void isq_ui_render(void)
@@ -338,36 +349,33 @@ static void isq_ui_render(void)
 		}
 	}
 
-	ISQ_UI_RECT_RENDER(isq_ui_rect_buffer, isq_ui_rect_buffer_count);
+	ISQ_UI_RECT_RENDER(isq_ui_vertex_buffer, isq_ui_vertex_buffer_count);
 }
 
-void isq_ui_compute_position(u32 id)
+void isq_ui_compute_rect(u32 id)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (box == NULL)
 		return;
 
-	if (box->parent == NULL) {
-		box->computed_rect.x = box->position.x;
-		box->computed_rect.y = box->position.y;
-		return;
+	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS) {
+		if (box->parent) {
+			box->computed_rect.x = box->parent->computed_rect.x + box->position.x;
+			box->computed_rect.z = box->parent->computed_rect.x + box->semantic_size.x.value;
+		} else {
+			box->computed_rect.x = box->position.x;
+			box->computed_rect.z = box->position.x + box->semantic_size.x.value;
+		}
 	}
 
-	struct isq_ui_box *parent = box->parent;
-	box->computed_rect.x = parent->computed_rect.x + box->position.x;
-	box->computed_rect.y = parent->computed_rect.y + box->position.y;
-}
-
-void isq_ui_compute_size(u32 id)
-{
-	struct isq_ui_box *box = isq_ui_box_array_get(id);
-	if (box == NULL)
-		return;
-
-	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS && box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PIXELS) {
-		box->computed_rect.z = box->semantic_size.x.value;
-		box->computed_rect.w = box->semantic_size.y.value;
-		return;
+	if (box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PIXELS) {
+		if (box->parent) {
+			box->computed_rect.y = box->parent->computed_rect.y + box->position.y;
+			box->computed_rect.w = box->parent->computed_rect.y + box->semantic_size.y.value;
+		} else {
+			box->computed_rect.y = box->position.y;
+			box->computed_rect.w = box->position.y + box->semantic_size.y.value;
+		}
 	}
 }
 
@@ -376,8 +384,9 @@ void isq_ui_begin(void)
 	if (!isq_ui_initialized)
 		isq_ui_init();
 
+	isq_ui_current_parent = (u32)-1;
 	isq_ui_box_array_count = 0;
-	isq_ui_rect_buffer_count = 0;
+	isq_ui_vertex_buffer_count = 0;
 }
 
 void isq_ui_end(void)
@@ -385,7 +394,7 @@ void isq_ui_end(void)
 	isq_ui_render();
 }
 
-u32 isq_ui_box_create(vec2 position, vec4 background_color, union isq_ui_sizes semantic_size, enum isq_ui_box_flags flags)
+u32 isq_ui_box_create(enum isq_ui_box_flags flags)
 {
 	// Expand the box array if needed.
 	if (isq_ui_box_array_count == isq_ui_box_array_capacity) {
@@ -398,9 +407,12 @@ u32 isq_ui_box_create(vec2 position, vec4 background_color, union isq_ui_sizes s
 	// Create the box.
 	struct isq_ui_box *box = &isq_ui_box_array[index];
 
-	box->position = position;
-	box->background_color = background_color;
-	box->semantic_size = semantic_size;
+	box->position = vec2_zero;
+	box->background_color = vec4_zero;
+	box->semantic_size = (union isq_ui_sizes){
+		.x = { .type = ISQ_UI_SIZE_TYPE_NULL, .value = 0 },
+		.y = { .type = ISQ_UI_SIZE_TYPE_NULL, .value = 0 },
+	};
 	box->flags = flags;
 	box->parent = isq_ui_current_parent != (u32)-1 ? &isq_ui_box_array[isq_ui_current_parent] : NULL;
 	box->first_child = NULL;
@@ -409,9 +421,6 @@ u32 isq_ui_box_create(vec2 position, vec4 background_color, union isq_ui_sizes s
 	box->last_child = NULL;
 
 	isq_ui_box_array_count++;
-
-	isq_ui_compute_position(index);
-	isq_ui_compute_size(index);
 
 	if (isq_ui_current_parent == (u32)-1)
 		isq_ui_current_parent = index;
@@ -429,6 +438,38 @@ u8 isq_ui_box_set_flags(u32 id, enum isq_ui_box_flags flags)
 	}
 
 	return 1;
+}
+
+u8 isq_ui_box_set_semantic_size(u32 id, union isq_ui_sizes semantic_size)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 1;
+
+	box->semantic_size = semantic_size;
+	isq_ui_compute_rect(id);
+	return 0;
+}
+
+u8 isq_ui_box_set_position(u32 id, vec2 position)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 1;
+
+	box->position = position;
+	isq_ui_compute_rect(id);
+	return 0;
+}
+
+u8 isq_ui_box_set_background_color(u32 id, vec4 color)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 1;
+
+	box->background_color = color;
+	return 0;
 }
 
 #endif
