@@ -8,6 +8,97 @@ void rect_render(void *, size_t);
 #define ISQ_UI_IMPLEMENTATION
 #include "isq_ui.h"
 
+#include <stdint.h>
+typedef uint8_t u8;
+typedef uint16_t u16;
+typedef uint32_t u32;
+typedef uint64_t u64;
+typedef size_t usize;
+typedef float f32;
+typedef double f64;
+
+typedef union {
+	struct { f32 x, y; };
+	struct { f32 u, v; };
+	f32 data[2];
+} vec2;
+
+vec2 vec2_zero = { 0, 0 };
+
+typedef union {
+	struct { f32 x, y, z; };
+	struct { f32 r, g, b; };
+	f32 data[3];
+} vec3;
+
+typedef union {
+	struct { f32 x, y, z, w; };
+	struct { f32 r, g, b, a; };
+	f32 data[4];
+} vec4;
+
+vec4 vec4_zero = { 0, 0, 0, 0 };
+
+vec4 vec4_scale(vec4 v, f32 scale)
+{
+	return (vec4){ .x = v.x * scale, .y = v.y * scale, .z = v.z * scale, .w = v.w * scale };
+}
+
+typedef union {
+	struct { vec4 x, y, z, w; };
+	f32 data[4][4];
+} mat4;
+
+mat4 mat4_identity(void)
+{
+	return (mat4){
+		.x = (vec4){ .x = 1, .y = 0, .z = 0, .w = 0 },
+		.y = (vec4){ .x = 0, .y = 1, .z = 0, .w = 0 },
+		.z = (vec4){ .x = 0, .y = 0, .z = 1, .w = 0 },
+		.w = (vec4){ .x = 0, .y = 0, .z = 0, .w = 1 },
+	};
+}
+
+mat4 mat4_translate(f32 x, f32 y, f32 z)
+{
+	mat4 m = mat4_identity();
+	m.w.x = x;
+	m.w.y = y;
+	m.w.z = z;
+	return m;
+}
+
+mat4 mat4_scale_aniso(mat4 m, f32 x, f32 y, f32 z)
+{
+	return (mat4){
+		vec4_scale(m.x, x),
+		vec4_scale(m.y, y),
+		vec4_scale(m.z, z),
+		m.w
+	};
+}
+
+mat4 mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f)
+{
+    mat4 m;
+
+    m.x.x = 2.f/(r-l);
+    m.x.y = m.x.z = m.x.w = 0;
+
+    m.y.y = 2.f/(t-b);
+    m.y.x = m.y.z = m.y.w = 0;
+
+    m.z.z = -2.f/(f-n);
+    m.z.x = m.z.y = m.z.w = 0;
+
+    m.w.x = -(r+l)/(r-l);
+    m.w.y = -(t+b)/(t-b);
+    m.w.z = -(f+n)/(f-n);
+    m.w.w = 1;
+
+    return m;
+}
+
 #define WIDTH 1920
 #define HEIGHT 1080
 
@@ -211,125 +302,26 @@ int main(void)
 			root_pos.y += 0.5;
 		}
 
-		isq_ui_begin(mouse_position);
+		isq_ui_begin(mouse_position.x, mouse_position.y);
 
 
-		// need some kind of layout system so simplify this...
-		// perhaps copy flexbox?
-		// isq_ui_flexbox(FLEXBOX_FLAGS);
-		// isq_ui_flexbox always pushes the created box to
-		// be the current parent.
-		// auto set sizes and positions based on flexbox flags
-		// if (isq_ui_box(FLEXBOX_ELEMENT_FLAGS).hovered)
-		// ...
-		// if (isq_ui_box(FLEXBOX_ELEMENT_FLAGS).hovered)
-		// ...
-		u32 id = isq_ui_flexbox(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_FLEX_COLUMN).id;
-		isq_ui_position(id, vec2_zero);
+		u32 id = isq_ui_flexbox(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_position(id, 0, 0);
 		isq_ui_semantic_size(id, (union isq_ui_sizes){
 			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
 			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
 		});
-		isq_ui_background_color(id, (vec4){ 1, 1, 1, 1 });
+		isq_ui_background_color(id, 1, 1, 1, 1);
 
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
+		for (int i = 0; i < 10; ++i) {
+			id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+			isq_ui_semantic_size(id, (union isq_ui_sizes){
+				.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+				.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			});
 
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
-
-		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
-		});
-		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
-
-		/*
-		struct isq_ui_state box = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE);
-
-		vec4 color = { 1, 1, 1, 1 };
-		if (box.hovered)
-			color = (vec4){ 1, 0, 0, 1 };
-
-		isq_ui_semantic_size(box.id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 800 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 800 },
-		});
-		isq_ui_position(box.id, (vec2){ root_pos.x, root_pos.y });
-		isq_ui_background_color(box.id, color);
-		*/
+			isq_ui_background_color(id, 0.05f * i, 1.f - i * 0.1, 1.f - i * 0.1, 1);
+		}
 
 		isq_ui_end();
 

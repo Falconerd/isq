@@ -37,135 +37,24 @@
 #define ISQ_REALLOC(x, u) realloc(x, u)
 #endif
 
-// You can override these types by defining
-// ISQ_INTTYPES_DEFINED and providing
-// alternatives.
-#ifndef ISQ_INTTYPES_DEFINED
-#define ISQ_INTTYPES_DEFINED
-#include <stdint.h>
-#include <stdlib.h>
-typedef uint8_t u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef size_t usize;
-#endif
+// Not sure how to customize vectors yet...
+// Probably need to use custom ones for now.
+// Prefixed to avoid collisions.
+typedef union isq_vec2 {
+	struct { float x, y; };
+} isq_vec2;
 
-// You can override these types by defining
-// ISQ_FLOATTYPES_DEFINED and providing
-// alternatives.
-#ifndef ISQ_FLOATTYPES_DEFINED
-#define ISQ_FLOATTYPES_DEFINED
-typedef float f32;
-typedef double f64;
-#endif
+typedef union isq_vec3 {
+	struct { float x, y, z; };
+} isq_vec3;
 
-// You can override this type by defining
-// ISQ_VEC2_DEFINED and providing
-// an alternative.
-#ifndef ISQ_VEC2_DEFINED
-#define ISQ_VEC2_DEFINED
-typedef union {
-	struct { f32 x, y; };
-	struct { f32 u, v; };
-	f32 data[2];
-} vec2;
-
-vec2 vec2_zero = { 0, 0 };
-#endif
-
-// You can override this type by defining
-// ISQ_VEC3_DEFINED and providing
-// an alternative.
-#ifndef ISQ_VEC3_DEFINED
-#define ISQ_VEC3_DEFINED
-typedef union {
-	struct { f32 x, y, z; };
-	struct { f32 r, g, b; };
-	f32 data[3];
-} vec3;
-#endif
-
-// You can override this type by defining
-// ISQ_VEC4_DEFINED and providing
-// an alternative.
-#ifndef ISQ_VEC4_DEFINED
-#define ISQ_VEC4_DEFINED
-typedef union {
-	struct { f32 x, y, z, w; };
-	struct { f32 r, g, b, a; };
-	f32 data[4];
-} vec4;
-
-vec4 vec4_zero = { 0, 0, 0, 0 };
-
-vec4 vec4_scale(vec4 v, f32 scale)
-{
-	return (vec4){ .x = v.x * scale, .y = v.y * scale, .z = v.z * scale, .w = v.w * scale };
-}
-#endif
-
-#ifndef ISQ_MAT4_DEFINED
-#define ISQ_MAT4_DEFINED
-typedef union {
-	struct { vec4 x, y, z, w; };
-	f32 data[4][4];
-} mat4;
-
-mat4 mat4_identity(void)
-{
-	return (mat4){
-		.x = (vec4){ .x = 1, .y = 0, .z = 0, .w = 0 },
-		.y = (vec4){ .x = 0, .y = 1, .z = 0, .w = 0 },
-		.z = (vec4){ .x = 0, .y = 0, .z = 1, .w = 0 },
-		.w = (vec4){ .x = 0, .y = 0, .z = 0, .w = 1 },
-	};
-}
-
-mat4 mat4_translate(f32 x, f32 y, f32 z)
-{
-	mat4 m = mat4_identity();
-	m.w.x = x;
-	m.w.y = y;
-	m.w.z = z;
-	return m;
-}
-
-mat4 mat4_scale_aniso(mat4 m, f32 x, f32 y, f32 z)
-{
-	return (mat4){
-		vec4_scale(m.x, x),
-		vec4_scale(m.y, y),
-		vec4_scale(m.z, z),
-		m.w
-	};
-}
-
-mat4 mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f)
-{
-    mat4 m;
-
-    m.x.x = 2.f/(r-l);
-    m.x.y = m.x.z = m.x.w = 0;
-
-    m.y.y = 2.f/(t-b);
-    m.y.x = m.y.z = m.y.w = 0;
-
-    m.z.z = -2.f/(f-n);
-    m.z.x = m.z.y = m.z.w = 0;
-
-    m.w.x = -(r+l)/(r-l);
-    m.w.y = -(t+b)/(t-b);
-    m.w.z = -(f+n)/(f-n);
-    m.w.w = 1;
-
-    return m;
-}
-#endif
+typedef union isq_vec4 {
+	struct { float x, y, z, w; };
+} isq_vec4;
 
 // Header section.
-#ifndef __ISQ_INCLUDE_ISQ_UI_H__
-#define __ISQ_INCLUDE_ISQ_UI_H__
+#ifndef ISQ_INCLUDE_ISQ_UI_H
+#define ISQ_INCLUDE_ISQ_UI_H
 
 enum isq_ui_box_flags {
 	ISQ_UI_BOX_FLAG_NONE = 0,
@@ -188,8 +77,8 @@ enum isq_ui_size_type {
 
 struct isq_ui_size {
 	enum isq_ui_size_type type;
-	f32 value;
-	f32 strictness;
+	float value;
+	float strictness;
 };
 
 union isq_ui_sizes {
@@ -198,24 +87,24 @@ union isq_ui_sizes {
 };
 
 struct isq_ui_vertex {
-	vec3 position;
-	vec4 color;
+	isq_vec3 position;
+	isq_vec4 color;
 };
 
 struct isq_ui_state {
-	u32 id;
-	u8 clicked;
-	u8 hovered;
+	unsigned id;
+	unsigned char clicked;
+	unsigned char hovered;
 };
 
 // Call ONCE before using anything.
 // width and height are the dimensions of the UI
 // area - typically the window.
-void isq_ui_init(f32 width, f32 height);
+void isq_ui_init(float width, float height);
 
 // Call once per frame before using the functions
 // in this header.
-void isq_ui_begin(vec2 mouse_position);
+void isq_ui_begin(float mouse_x, float mouse_y);
 // Call after using the functions in this header.
 void isq_ui_end(void);
 
@@ -223,20 +112,20 @@ void isq_ui_end(void);
 struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags);
 
 // Set the current parent on the stack.
-u8 isq_ui_push_id(u32 id);
+unsigned isq_ui_push_id(unsigned id);
 // Set the current parent to the last created
 // box.
-u8 isq_ui_push(void);
-u8 isq_ui_pop(void);
+unsigned isq_ui_push(void);
+unsigned isq_ui_pop(void);
 
 // The following functions all return 0 on
 // success. They are simple setters.
-u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags);
-u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size);
-u8 isq_ui_position(u32 id, vec2 position);
-u8 isq_ui_background_color(u32 id, vec4 color);
+unsigned isq_ui_flags(unsigned id, enum isq_ui_box_flags flags);
+unsigned isq_ui_semantic_size(unsigned id, union isq_ui_sizes semantic_size);
+unsigned isq_ui_position(unsigned id, float x, float y);
+unsigned isq_ui_background_color(unsigned id, float r, float g, float b, float a);
 
-u32 isq_ui_last_id(void);
+unsigned isq_ui_last_id(void);
 // Flexbox stuff TODO
 // Flexbox is a layer built on top of isq_ui_box
 // that allows you to define a flexible
@@ -253,10 +142,10 @@ struct isq_ui_box {
 	// Per frame.
 	enum isq_ui_box_flags flags;
 	union isq_ui_sizes semantic_size;
-	vec2 position;
-	vec4 background_color;
-	vec4 border_color;
-	vec4 text_color;
+	isq_vec2 position;
+	isq_vec4 background_color;
+	isq_vec4 border_color;
+	isq_vec4 text_color;
 
 	struct isq_ui_box *parent;
 	struct isq_ui_box *first_child;
@@ -265,28 +154,28 @@ struct isq_ui_box {
 	struct isq_ui_box *last_child;
 
 	// Computed.
-	vec4 computed_rect;
+	isq_vec4 computed_rect;
 };
 
 struct isq_ui_mouse {
-	vec2 position;
+	isq_vec2 position;
 	// add buttons states here
 };
 
-static vec2 isq_ui_dimensions = {0};
+static isq_vec2 isq_ui_dimensions = {0};
 static struct isq_ui_mouse isq_ui_mouse = {0};
 
 static struct isq_ui_box *isq_ui_box_array = NULL;
-static u32 isq_ui_box_array_capacity = 0;
-static u32 isq_ui_box_array_count = 0;
+static unsigned isq_ui_box_array_capacity = 0;
+static unsigned isq_ui_box_array_count = 0;
 
 static struct isq_ui_box *isq_ui_current_parent = NULL;
 
 static struct isq_ui_vertex *isq_ui_vertex_buffer = NULL;
-static u32 isq_ui_vertex_buffer_capacity = 0;
-static u32 isq_ui_vertex_buffer_count = 0;
+static unsigned isq_ui_vertex_buffer_capacity = 0;
+static unsigned isq_ui_vertex_buffer_count = 0;
 
-static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
+static struct isq_ui_box *isq_ui_box_array_get(unsigned id) {
 	if (id >= isq_ui_box_array_count) {
 		return NULL;
 	}
@@ -294,7 +183,7 @@ static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
 	return &isq_ui_box_array[id];
 }
 
-static void isq_ui_enqueue_rect(vec4 rect, vec4 color)
+static void isq_ui_enqueue_rect(isq_vec4 rect, isq_vec4 color)
 {
 	if (isq_ui_vertex_buffer_count == isq_ui_vertex_buffer_capacity) {
 		isq_ui_vertex_buffer_capacity *= 2;
@@ -326,7 +215,7 @@ static void isq_ui_enqueue_rect(vec4 rect, vec4 color)
 	isq_ui_vertex_buffer_count++;
 }
 
-static struct isq_ui_state isq_ui_interact(u32 id)
+static struct isq_ui_state isq_ui_interact(unsigned id)
 {
 	struct isq_ui_state state = { .id = id };
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
@@ -342,7 +231,7 @@ static struct isq_ui_state isq_ui_interact(u32 id)
 
 static void isq_ui_render(void)
 {
-	for (u32 i = 0; i < isq_ui_box_array_count; ++i) {
+	for (unsigned i = 0; i < isq_ui_box_array_count; ++i) {
 		struct isq_ui_box *box = isq_ui_box_array_get(i);
 		if (box->flags & ISQ_UI_BOX_FLAG_DRAW_BACKGROUND) {
 			isq_ui_enqueue_rect(box->computed_rect, box->background_color);
@@ -352,13 +241,13 @@ static void isq_ui_render(void)
 	ISQ_UI_RECT_RENDER(isq_ui_vertex_buffer, isq_ui_vertex_buffer_count);
 }
 
-void isq_ui_compute_rect(u32 id)
+void isq_ui_compute_rect(unsigned id)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (box == NULL)
 		return;
 
-	if ((box->position.x == 0xdeadbeef && box->position.y == 0xdeadbeef) || (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_NULL && box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_NULL))
+	if ((box->position.x == (float)0xdeadbeef && box->position.y == (float)0xdeadbeef) || (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_NULL && box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_NULL))
 		return;
 
 	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS) {
@@ -393,7 +282,7 @@ void isq_ui_compute_rect(u32 id)
 	}
 }
 
-void isq_ui_init(f32 width, f32 height)
+void isq_ui_init(float width, float height)
 {
 	isq_ui_dimensions.x = width;
 	isq_ui_dimensions.y = height;
@@ -404,9 +293,10 @@ void isq_ui_init(f32 width, f32 height)
 	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
 }
 
-void isq_ui_begin(vec2 mouse_position)
+void isq_ui_begin(float mouse_x, float mouse_y)
 {
-	isq_ui_mouse.position = mouse_position;
+	isq_ui_mouse.position.x = mouse_x;
+	isq_ui_mouse.position.y = mouse_y;
 
 	isq_ui_current_parent = NULL;
 	isq_ui_box_array_count = 0;
@@ -418,7 +308,7 @@ void isq_ui_end(void)
 	isq_ui_render();
 }
 
-u8 isq_ui_push(void)
+unsigned isq_ui_push(void)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(isq_ui_box_array_count - 1);
 	if (box == NULL)
@@ -430,7 +320,7 @@ u8 isq_ui_push(void)
 	return 0;
 }
 
-u8 isq_ui_push_id(u32 id)
+unsigned isq_ui_push_id(unsigned id)
 {
 	if (isq_ui_current_parent == NULL) {
 		isq_ui_current_parent = isq_ui_box_array_get(id);
@@ -448,7 +338,7 @@ u8 isq_ui_push_id(u32 id)
 	return 0;
 }
 
-u8 isq_ui_pop()
+unsigned isq_ui_pop()
 {
 	if (isq_ui_current_parent == NULL)
 		return 1;
@@ -458,7 +348,7 @@ u8 isq_ui_pop()
 	return 0;
 }
 
-static struct isq_ui_box *prev_sibling(u32 id)
+static struct isq_ui_box *prev_sibling(unsigned id)
 {
 	if (!isq_ui_current_parent && id > 0) {
 		return isq_ui_box_array_get(id - 1);
@@ -479,15 +369,13 @@ struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags)
 		isq_ui_box_array = ISQ_REALLOC(isq_ui_box_array, sizeof(struct isq_ui_box) * isq_ui_box_array_capacity);
 	}
 
-	u32 index = isq_ui_box_array_count;
-
-	// Create the box.
+	unsigned index = isq_ui_box_array_count;
 	struct isq_ui_box *box = &isq_ui_box_array[index];
 
 	// Set to a magic value to detect
 	// uninitialized values.
-	box->position = (vec2){ 0xdeadbeef, 0xdeadbeef };
-	box->background_color = vec4_zero;
+	box->position = (isq_vec2){ (float)0xdeadbeef, (float)0xdeadbeef };
+	box->background_color = (isq_vec4){ 0, 0, 0, 0 };
 	box->semantic_size = (union isq_ui_sizes){
 		.x = { .type = ISQ_UI_SIZE_TYPE_NULL, .value = 0 },
 		.y = { .type = ISQ_UI_SIZE_TYPE_NULL, .value = 0 },
@@ -509,7 +397,7 @@ struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags)
 	return isq_ui_interact(index);
 }
 
-u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags)
+unsigned isq_ui_flags(unsigned id, enum isq_ui_box_flags flags)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 
@@ -521,7 +409,7 @@ u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags)
 	return 1;
 }
 
-u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size)
+unsigned isq_ui_semantic_size(unsigned id, union isq_ui_sizes semantic_size)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (!box)
@@ -532,28 +420,28 @@ u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size)
 	return 0;
 }
 
-u8 isq_ui_position(u32 id, vec2 position)
+unsigned isq_ui_position(unsigned id, float x, float y)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (!box)
 		return 1;
 
-	box->position = position;
+	box->position = (isq_vec2){ x, y };
 	isq_ui_compute_rect(id);
 	return 0;
 }
 
-u8 isq_ui_background_color(u32 id, vec4 color)
+unsigned isq_ui_background_color(unsigned id, float r, float g, float b, float a)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (!box)
 		return 1;
 
-	box->background_color = color;
+	box->background_color = (isq_vec4){ r, g, b, a };
 	return 0;
 }
 
-u32 isq_ui_last_id(void)
+unsigned isq_ui_last_id(void)
 {
 	return isq_ui_box_array_count - 1;
 }
@@ -572,7 +460,7 @@ struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags)
 {
 	struct isq_ui_state state = isq_ui_create(flags);
 
-	isq_ui_position(state.id, vec2_zero);
+	isq_ui_position(state.id, 0, 0);
 
 	return state;
 }
