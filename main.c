@@ -102,9 +102,6 @@ int main(void)
 	mat4 projection = mat4_ortho(0, WIDTH, 0, HEIGHT, -1, 1);
 	glUniformMatrix4fv(glGetUniformLocation(rect_shader, "u_projection"), 1, GL_FALSE, &projection.data[0][0]);
 
-	mat4 model = mat4_identity();
-	glUniformMatrix4fv(glGetUniformLocation(rect_shader, "u_model"), 1, GL_FALSE, &model.data[0][0]);
-
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
