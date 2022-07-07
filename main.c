@@ -16,6 +16,8 @@ u32 rect_vao;
 u32 rect_vbo;
 u32 rect_ebo;
 
+vec2 mouse_position;
+
 enum {
 	MAX_RECT_COUNT = 1000,
 	MAX_VERTEX_COUNT = MAX_RECT_COUNT * 4,
@@ -106,6 +108,12 @@ void rect_render(void *buffer, usize count)
 	glDrawElements(GL_TRIANGLES, (count / 4) * 6, GL_UNSIGNED_INT, NULL);
 }
 
+void cursor_callback(GLFWwindow *window, f64 x, f64 y)
+{
+	mouse_position.x = (f32)x;
+	mouse_position.y = (f32)y;
+}
+
 int main(void)
 {
 	const char *err_log = calloc(1, 512);
@@ -130,6 +138,8 @@ int main(void)
 	}
 
 	glfwMakeContextCurrent(window);
+
+	glfwSetCursorPosCallback(window, cursor_callback);
 
 	// init glad
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
@@ -178,6 +188,8 @@ int main(void)
 
 	vec2 root_pos = { 100, 100 };
 
+	isq_ui_init(WIDTH, HEIGHT);
+
 	while (!glfwWindowShouldClose(window)) {
 		glClearColor(0.2, 0.2, 0.2, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
@@ -199,46 +211,125 @@ int main(void)
 			root_pos.y += 0.5;
 		}
 
-		isq_ui_begin(WIDTH, HEIGHT);
+		isq_ui_begin(mouse_position);
 
-		u32 id = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND);
 
+		// need some kind of layout system so simplify this...
+		// perhaps copy flexbox?
+		// isq_ui_flexbox(FLEXBOX_FLAGS);
+		// isq_ui_flexbox always pushes the created box to
+		// be the current parent.
+		// auto set sizes and positions based on flexbox flags
+		// if (isq_ui_box(FLEXBOX_ELEMENT_FLAGS).hovered)
+		// ...
+		// if (isq_ui_box(FLEXBOX_ELEMENT_FLAGS).hovered)
+		// ...
+		u32 id = isq_ui_flexbox(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_FLEX_COLUMN).id;
+		isq_ui_position(id, vec2_zero);
 		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
+		});
+		isq_ui_background_color(id, (vec4){ 1, 1, 1, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
+
+		id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		isq_ui_semantic_size(id, (union isq_ui_sizes){
+			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
+		});
+		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
+
+		/*
+		struct isq_ui_state box = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE);
+
+		vec4 color = { 1, 1, 1, 1 };
+		if (box.hovered)
+			color = (vec4){ 1, 0, 0, 1 };
+
+		isq_ui_semantic_size(box.id, (union isq_ui_sizes){
 			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 800 },
 			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 800 },
 		});
-		isq_ui_position(id, (vec2){ root_pos.x, root_pos.y });
-		isq_ui_background_color(id, (vec4){ 1, 1, 1, 1 });
-
-		isq_ui_push(id);
-
-		id = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND);
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 600 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 600 },
-		});
-		isq_ui_position(id, (vec2){ 30, 30 });
-		isq_ui_background_color(id, (vec4){ 1, 0, 0, 1 });
-
-		isq_ui_push(id);
-
-		id = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND);
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 100 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 100 },
-		});
-		isq_ui_position(id, (vec2){ 300, 30 });
-		isq_ui_background_color(id, (vec4){ 0, 1, 0, 1 });
-
-		id = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND);
-		isq_ui_semantic_size(id, (union isq_ui_sizes){
-			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 100 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 100 },
-		});
-		isq_ui_position(id, (vec2){ 80, 30 });
-		isq_ui_background_color(id, (vec4){ 0, 0, 1, 1 });
-
-		isq_ui_pop();
+		isq_ui_position(box.id, (vec2){ root_pos.x, root_pos.y });
+		isq_ui_background_color(box.id, color);
+		*/
 
 		isq_ui_end();
 

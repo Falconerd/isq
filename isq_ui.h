@@ -169,11 +169,14 @@ mat4 mat4_ortho(f32 l, f32 r, f32 b, f32 t, f32 n, f32 f)
 
 enum isq_ui_box_flags {
 	ISQ_UI_BOX_FLAG_NONE = 0,
-	ISQ_UI_BOX_FLAG_HOVERABLE = 1 << 1,
-	ISQ_UI_BOX_FLAG_CLICKABLE = 1 << 2,
-	ISQ_UI_BOX_FLAG_DRAW_BACKGROUND = 1 << 3,
-	ISQ_UI_BOX_FLAG_DRAW_BORDER = 1 << 4,
-	ISQ_UI_BOX_FLAG_DRAW_TEXT = 1 << 5,
+	ISQ_UI_BOX_FLAG_HOVERABLE = 1 << 0,
+	ISQ_UI_BOX_FLAG_CLICKABLE = 1 << 1,
+	ISQ_UI_BOX_FLAG_DRAW_BACKGROUND = 1 << 2,
+	ISQ_UI_BOX_FLAG_DRAW_BORDER = 1 << 3,
+	ISQ_UI_BOX_FLAG_DRAW_TEXT = 1 << 4,
+	ISQ_UI_BOX_FLAG_FLEX_ROW = 1 << 5,
+	ISQ_UI_BOX_FLAG_FLEX_COLUMN = 1 << 6,
+	ISQ_UI_BOX_FLAG_FLEX_NOWRAP = 1 << 7,
 };
 
 enum isq_ui_size_type {
@@ -181,7 +184,6 @@ enum isq_ui_size_type {
 	ISQ_UI_SIZE_TYPE_PIXELS,
 	ISQ_UI_SIZE_TYPE_PERCENT,
 	ISQ_UI_SIZE_TYPE_TEXT_CONTENT,
-	ISQ_UI_SIZE_TYPE_INVALID
 };
 
 struct isq_ui_size {
@@ -200,18 +202,31 @@ struct isq_ui_vertex {
 	vec4 color;
 };
 
-// Call before using the functions in this header.
+struct isq_ui_state {
+	u32 id;
+	u8 clicked;
+	u8 hovered;
+};
+
+// Call ONCE before using anything.
 // width and height are the dimensions of the UI
 // area - typically the window.
-void isq_ui_begin(f32 width, f32 height);
+void isq_ui_init(f32 width, f32 height);
+
+// Call once per frame before using the functions
+// in this header.
+void isq_ui_begin(vec2 mouse_position);
 // Call after using the functions in this header.
 void isq_ui_end(void);
 
 // Returns id.
-u32 isq_ui_create(enum isq_ui_box_flags flags);
+struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags);
 
 // Set the current parent on the stack.
-u8 isq_ui_push(u32 id);
+u8 isq_ui_push_id(u32 id);
+// Set the current parent to the last created
+// box.
+u8 isq_ui_push(void);
 u8 isq_ui_pop(void);
 
 // The following functions all return 0 on
@@ -220,6 +235,14 @@ u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags);
 u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size);
 u8 isq_ui_position(u32 id, vec2 position);
 u8 isq_ui_background_color(u32 id, vec4 color);
+
+u32 isq_ui_last_id(void);
+// Flexbox stuff TODO
+// Flexbox is a layer built on top of isq_ui_box
+// that allows you to define a flexible
+// layout. It's based on CSS's flexbox.
+struct isq_ui_state isq_ui_flexbox(enum isq_ui_box_flags flags);
+struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags);
 
 #endif
 
@@ -245,9 +268,13 @@ struct isq_ui_box {
 	vec4 computed_rect;
 };
 
-static u8 isq_ui_initialized = 0;
-static f32 isq_ui_width = 0;
-static f32 isq_ui_height = 0;
+struct isq_ui_mouse {
+	vec2 position;
+	// add buttons states here
+};
+
+static vec2 isq_ui_dimensions = {0};
+static struct isq_ui_mouse isq_ui_mouse = {0};
 
 static struct isq_ui_box *isq_ui_box_array = NULL;
 static u32 isq_ui_box_array_capacity = 0;
@@ -258,16 +285,6 @@ static struct isq_ui_box *isq_ui_current_parent = NULL;
 static struct isq_ui_vertex *isq_ui_vertex_buffer = NULL;
 static u32 isq_ui_vertex_buffer_capacity = 0;
 static u32 isq_ui_vertex_buffer_count = 0;
-
-static void isq_ui_init(void)
-{
-	isq_ui_initialized = 1;
-
-	isq_ui_box_array = ISQ_MALLOC(sizeof(struct isq_ui_box) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
-	isq_ui_box_array_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
-	isq_ui_vertex_buffer = ISQ_MALLOC(sizeof(struct isq_ui_vertex) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
-	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
-}
 
 static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
 	if (id >= isq_ui_box_array_count) {
@@ -309,6 +326,20 @@ static void isq_ui_enqueue_rect(vec4 rect, vec4 color)
 	isq_ui_vertex_buffer_count++;
 }
 
+static struct isq_ui_state isq_ui_interact(u32 id)
+{
+	struct isq_ui_state state = { .id = id };
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (box->flags & ISQ_UI_BOX_FLAG_HOVERABLE) {
+		if (isq_ui_mouse.position.x >= box->computed_rect.x && isq_ui_mouse.position.y >= box->computed_rect.y &&
+			isq_ui_mouse.position.x <= box->computed_rect.z && isq_ui_mouse.position.y <= box->computed_rect.w) {
+			state.hovered = 1;
+		}
+	}
+
+	return state;
+}
+
 static void isq_ui_render(void)
 {
 	for (u32 i = 0; i < isq_ui_box_array_count; ++i) {
@@ -332,8 +363,14 @@ void isq_ui_compute_rect(u32 id)
 
 	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS) {
 		if (box->parent) {
-			box->computed_rect.x = box->parent->computed_rect.x + box->position.x;
-			box->computed_rect.z = box->computed_rect.x + box->semantic_size.x.value;
+			if (box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_ROW && box->prev_sibling) {
+				// Gotta get the child index then offset the x and z...
+				box->computed_rect.x = box->prev_sibling->computed_rect.z + box->position.x;
+				box->computed_rect.z = box->computed_rect.x + box->semantic_size.x.value;
+			} else {
+				box->computed_rect.x = box->parent->computed_rect.x + box->position.x;
+				box->computed_rect.z = box->computed_rect.x + box->semantic_size.x.value;
+			}
 		} else {
 			box->computed_rect.x = box->position.x;
 			box->computed_rect.z = box->position.x + box->semantic_size.x.value;
@@ -342,8 +379,13 @@ void isq_ui_compute_rect(u32 id)
 
 	if (box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PIXELS) {
 		if (box->parent) {
-			box->computed_rect.y = box->parent->computed_rect.y + box->position.y;
-			box->computed_rect.w = box->computed_rect.y + box->semantic_size.y.value;
+			if (box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_COLUMN && box->prev_sibling) {
+				box->computed_rect.y = box->prev_sibling->computed_rect.w + box->position.y;
+				box->computed_rect.w = box->computed_rect.y + box->semantic_size.y.value;
+			} else {
+				box->computed_rect.y = box->parent->computed_rect.y + box->position.y;
+				box->computed_rect.w = box->computed_rect.y + box->semantic_size.y.value;
+			}
 		} else {
 			box->computed_rect.y = box->position.y;
 			box->computed_rect.w = box->position.y + box->semantic_size.y.value;
@@ -351,13 +393,20 @@ void isq_ui_compute_rect(u32 id)
 	}
 }
 
-void isq_ui_begin(f32 width, f32 height)
+void isq_ui_init(f32 width, f32 height)
 {
-	if (!isq_ui_initialized)
-		isq_ui_init();
+	isq_ui_dimensions.x = width;
+	isq_ui_dimensions.y = height;
 
-	isq_ui_width = width;
-	isq_ui_height = height;
+	isq_ui_box_array = ISQ_MALLOC(sizeof(struct isq_ui_box) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
+	isq_ui_box_array_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
+	isq_ui_vertex_buffer = ISQ_MALLOC(sizeof(struct isq_ui_vertex) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
+	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
+}
+
+void isq_ui_begin(vec2 mouse_position)
+{
+	isq_ui_mouse.position = mouse_position;
 
 	isq_ui_current_parent = NULL;
 	isq_ui_box_array_count = 0;
@@ -369,23 +418,34 @@ void isq_ui_end(void)
 	isq_ui_render();
 }
 
-u8 isq_ui_push(u32 id)
+u8 isq_ui_push(void)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(isq_ui_box_array_count - 1);
+	if (box == NULL)
+		return 1;
+
+	box->parent = isq_ui_current_parent;
+	isq_ui_current_parent = box;
+
+	return 0;
+}
+
+u8 isq_ui_push_id(u32 id)
 {
 	if (isq_ui_current_parent == NULL) {
 		isq_ui_current_parent = isq_ui_box_array_get(id);
 		return 0;
-	} else {
-		struct isq_ui_box *parent = isq_ui_current_parent;
-		struct isq_ui_box *child = isq_ui_box_array_get(id);
-		if (parent == NULL || child == NULL)
-			return 1;
+	}
 
-		child->parent = parent;
-		isq_ui_current_parent = child;
-		return 0;
-	};
+	struct isq_ui_box *parent = isq_ui_current_parent;
+	struct isq_ui_box *child = isq_ui_box_array_get(id);
+	if (parent == NULL || child == NULL)
+		return 1;
 
-	return 1;
+	child->parent = parent;
+	isq_ui_current_parent = child;
+
+	return 0;
 }
 
 u8 isq_ui_pop()
@@ -398,7 +458,20 @@ u8 isq_ui_pop()
 	return 0;
 }
 
-u32 isq_ui_create(enum isq_ui_box_flags flags)
+static struct isq_ui_box *prev_sibling(u32 id)
+{
+	if (!isq_ui_current_parent && id > 0) {
+		return isq_ui_box_array_get(id - 1);
+	}
+
+	if (isq_ui_current_parent && isq_ui_current_parent != isq_ui_box_array_get(id - 1)) {
+		return isq_ui_box_array_get(id - 1);
+	}
+
+	return NULL;
+}
+
+struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags)
 {
 	// Expand the box array if needed.
 	if (isq_ui_box_array_count == isq_ui_box_array_capacity) {
@@ -421,14 +494,19 @@ u32 isq_ui_create(enum isq_ui_box_flags flags)
 	};
 	box->flags = flags;
 	box->parent = isq_ui_current_parent;
+
 	box->first_child = NULL;
-	box->next_sibling = NULL;
-	box->prev_sibling = NULL;
+
+	box->prev_sibling = prev_sibling(index);
+	if (box->prev_sibling) {
+		box->prev_sibling->next_sibling = box;
+	}
+
 	box->last_child = NULL;
 
 	isq_ui_box_array_count++;
 
-	return index;
+	return isq_ui_interact(index);
 }
 
 u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags)
@@ -475,4 +553,29 @@ u8 isq_ui_background_color(u32 id, vec4 color)
 	return 0;
 }
 
+u32 isq_ui_last_id(void)
+{
+	return isq_ui_box_array_count - 1;
+}
+
+struct isq_ui_state isq_ui_flexbox(enum isq_ui_box_flags flags)
+{
+	enum isq_ui_box_flags flex_direction = (flags & ISQ_UI_BOX_FLAG_FLEX_COLUMN) ? ISQ_UI_BOX_FLAG_FLEX_COLUMN : ISQ_UI_BOX_FLAG_FLEX_ROW;
+	struct isq_ui_state state = isq_ui_create(flags | flex_direction);
+
+	isq_ui_push_id(state.id);
+
+	return state;
+}
+
+struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags)
+{
+	struct isq_ui_state state = isq_ui_create(flags);
+
+	isq_ui_position(state.id, vec2_zero);
+
+	return state;
+}
+
 #endif
+
