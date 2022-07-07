@@ -57,7 +57,7 @@ static u32 shader_create(const char *vert_path, const char *frag_path)
 	int success = 0;
 
 	u32 vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vert_shader, 1, &vert_source, NULL);
+	glShaderSource(vert_shader, 1, (const char * const *)&vert_source, NULL);
 	glCompileShader(vert_shader);
 	glGetShaderiv(vert_shader, GL_COMPILE_STATUS, &success);
 	if (!success) {
@@ -67,7 +67,7 @@ static u32 shader_create(const char *vert_path, const char *frag_path)
 	}
 
 	u32 frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag_shader, 1, &frag_source, NULL);
+	glShaderSource(frag_shader, 1, (const char * const *)&frag_source, NULL);
 	glCompileShader(frag_shader);
 	glGetShaderiv(frag_shader, GL_COMPILE_STATUS, &success);
 	if (!success) {
@@ -199,8 +199,7 @@ int main(void)
 			root_pos.y += 0.5;
 		}
 
-		isq_ui_begin();
-		isq_ui_dimensions(WIDTH, HEIGHT);
+		isq_ui_begin(WIDTH, HEIGHT);
 
 		u32 id = isq_ui_create(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND);
 

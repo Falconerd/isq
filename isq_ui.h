@@ -200,8 +200,10 @@ struct isq_ui_vertex {
 	vec4 color;
 };
 
-// Call before using any of the functions in this header.
-void isq_ui_begin(void);
+// Call before using the functions in this header.
+// width and height are the dimensions of the UI
+// area - typically the window.
+void isq_ui_begin(f32 width, f32 height);
 // Call after using the functions in this header.
 void isq_ui_end(void);
 
@@ -210,8 +212,6 @@ u32 isq_ui_create(enum isq_ui_box_flags flags);
 
 // Set the current parent on the stack.
 u8 isq_ui_push(u32 id);
-
-// Set the current parent to the last pushed parent.
 u8 isq_ui_pop(void);
 
 // The following functions all return 0 on
@@ -220,8 +220,6 @@ u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags);
 u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size);
 u8 isq_ui_position(u32 id, vec2 position);
 u8 isq_ui_background_color(u32 id, vec4 color);
-// Set the dimensions (usually window size).
-u8 isq_ui_dimensions(f32 width, f32 height);
 
 #endif
 
@@ -269,12 +267,6 @@ static void isq_ui_init(void)
 	isq_ui_box_array_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
 	isq_ui_vertex_buffer = ISQ_MALLOC(sizeof(struct isq_ui_vertex) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
 	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
-}
-
-u8 isq_ui_dimensions(f32 width, f32 height)
-{
-	isq_ui_width = width;
-	isq_ui_height = height;
 }
 
 static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
@@ -359,10 +351,13 @@ void isq_ui_compute_rect(u32 id)
 	}
 }
 
-void isq_ui_begin(void)
+void isq_ui_begin(f32 width, f32 height)
 {
 	if (!isq_ui_initialized)
 		isq_ui_init();
+
+	isq_ui_width = width;
+	isq_ui_height = height;
 
 	isq_ui_current_parent = NULL;
 	isq_ui_box_array_count = 0;
@@ -416,7 +411,8 @@ u32 isq_ui_create(enum isq_ui_box_flags flags)
 	// Create the box.
 	struct isq_ui_box *box = &isq_ui_box_array[index];
 
-	// Set to a magic value to detect uninitialized values.
+	// Set to a magic value to detect
+	// uninitialized values.
 	box->position = (vec2){ 0xdeadbeef, 0xdeadbeef };
 	box->background_color = vec4_zero;
 	box->semantic_size = (union isq_ui_sizes){
