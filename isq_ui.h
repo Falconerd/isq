@@ -220,7 +220,8 @@ u8 isq_ui_flags(u32 id, enum isq_ui_box_flags flags);
 u8 isq_ui_semantic_size(u32 id, union isq_ui_sizes semantic_size);
 u8 isq_ui_position(u32 id, vec2 position);
 u8 isq_ui_background_color(u32 id, vec4 color);
-
+// Set the dimensions (usually window size).
+u8 isq_ui_dimensions(f32 width, f32 height);
 
 #endif
 
@@ -247,6 +248,8 @@ struct isq_ui_box {
 };
 
 static u8 isq_ui_initialized = 0;
+static f32 isq_ui_width = 0;
+static f32 isq_ui_height = 0;
 
 static struct isq_ui_box *isq_ui_box_array = NULL;
 static u32 isq_ui_box_array_capacity = 0;
@@ -258,77 +261,6 @@ static struct isq_ui_vertex *isq_ui_vertex_buffer = NULL;
 static u32 isq_ui_vertex_buffer_capacity = 0;
 static u32 isq_ui_vertex_buffer_count = 0;
 
-static char *buffer_from_file(const char *path)
-{
-	FILE *file = fopen(path, "rb");
-	if (!file) {
-		return NULL;
-	}
-	fseek(file, 0, SEEK_END);
-	usize size = ftell(file);
-	fseek(file, 0, SEEK_SET);
-
-	char *buffer = ISQ_MALLOC(size + 1);
-	if (!buffer) {
-		fclose(file);
-		return NULL;
-	}
-
-	fread(buffer, size, 1, file);
-	fclose(file);
-	buffer[size] = 0;
-
-	return buffer;
-}
-
-static u32 shader_create(const char *vert_path, const char *frag_path)
-{
-	char *vert_source = buffer_from_file(vert_path);
-	char *frag_source = buffer_from_file(frag_path);
-
-	if (!vert_source || !frag_source)
-		return 0;
-
-	char log[512] = {0};
-	int success = 0;
-
-	u32 vert_shader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vert_shader, 1, &vert_source, NULL);
-	glCompileShader(vert_shader);
-	glGetShaderiv(vert_shader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(vert_shader, 512, NULL, log);
-		printf("ERROR COMPILING SHADER: %s\n", log);
-		return 0;
-	}
-
-	u32 frag_shader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(frag_shader, 1, &frag_source, NULL);
-	glCompileShader(frag_shader);
-	glGetShaderiv(frag_shader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glGetShaderInfoLog(frag_shader, 512, NULL, log);
-		printf("ERROR COMPILING SHADER: %s\n", log);
-		return 0;
-	}
-
-	u32 shader = glCreateProgram();
-	glAttachShader(shader, vert_shader);
-	glAttachShader(shader, frag_shader);
-	glLinkProgram(shader);
-	glGetProgramiv(shader, GL_LINK_STATUS, &success);
-	if (!success) {
-		glGetProgramInfoLog(shader, 512, NULL, log);
-		printf("ERROR LINKING SHADER: %s\n", log);
-		return 0;
-	}
-
-	glDeleteShader(vert_shader);
-	glDeleteShader(frag_shader);
-
-	return shader;
-}
-
 static void isq_ui_init(void)
 {
 	isq_ui_initialized = 1;
@@ -337,6 +269,12 @@ static void isq_ui_init(void)
 	isq_ui_box_array_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
 	isq_ui_vertex_buffer = ISQ_MALLOC(sizeof(struct isq_ui_vertex) * ISQ_UI_INITIAL_BUFFER_CAPACITY);
 	isq_ui_vertex_buffer_capacity = ISQ_UI_INITIAL_BUFFER_CAPACITY;
+}
+
+u8 isq_ui_dimensions(f32 width, f32 height)
+{
+	isq_ui_width = width;
+	isq_ui_height = height;
 }
 
 static struct isq_ui_box *isq_ui_box_array_get(u32 id) {
