@@ -300,7 +300,7 @@ static void isq_ui_compute_rect(unsigned id)
 	float width = isq_ui_compute_width(id, origin, parent_size);
 	float height = isq_ui_compute_height(id, origin, parent_size);
 
-	isq_vec2 position = {origin.x, origin.y};
+	isq_vec2 position = {origin.x + box->position.x, origin.y + box->position.y};
 
 	if (box->parent && box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_ROW) {
 		if (height > box->parent->flex_size)
@@ -394,12 +394,14 @@ unsigned isq_ui_pop()
 
 static struct isq_ui_box *prev_sibling(unsigned id)
 {
-	if (!isq_ui_current_parent && id > 0) {
-		return isq_ui_box_array_get(id - 1);
-	}
+	if (id == 0)
+		return NULL;
 
-	if (isq_ui_current_parent && isq_ui_current_parent != isq_ui_box_array_get(id - 1)) {
-		return isq_ui_box_array_get(id - 1);
+	struct isq_ui_box *curr = isq_ui_box_array_get(id - 1);
+	for (unsigned i = id - 1; i > 0; --i) {
+		struct isq_ui_box *curr = isq_ui_box_array_get(i);
+		if (curr->parent == isq_ui_current_parent)
+			return curr;
 	}
 
 	return NULL;

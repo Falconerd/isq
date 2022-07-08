@@ -304,7 +304,6 @@ int main(void)
 
 		isq_ui_begin(mouse_position.x, mouse_position.y);
 
-
 		u32 id = isq_ui_flexbox(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
 		isq_ui_position(id, 0, 0);
 		isq_ui_semantic_size(id, (union isq_ui_sizes){
@@ -313,7 +312,7 @@ int main(void)
 		});
 		isq_ui_background_color(id, 1, 1, 1, 1);
 
-		for (int i = 0; i < 120; ++i) {
+		for (int i = 0; i < 60; ++i) {
 			struct isq_ui_state state = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE);
 			id = state.id;
 			isq_ui_semantic_size(id, (union isq_ui_sizes){
@@ -332,6 +331,26 @@ int main(void)
 			}
 
 			isq_ui_background_color(id, r, g, b, 1);
+#if 1
+			isq_ui_push();
+
+			id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+			isq_ui_semantic_size(id, (union isq_ui_sizes){
+				.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 5 },
+				.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 5 },
+			});
+			isq_ui_background_color(id, 1, 1, 1, 0.7);
+
+			id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+			isq_ui_position(id, 10, 10);
+			isq_ui_semantic_size(id, (union isq_ui_sizes){
+				.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 5 },
+				.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 5 },
+			});
+			isq_ui_background_color(id, 0, 1, 0, 0.4);
+
+			isq_ui_pop();
+#endif
 		}
 
 		isq_ui_end();
