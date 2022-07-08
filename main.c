@@ -313,14 +313,25 @@ int main(void)
 		});
 		isq_ui_background_color(id, 1, 1, 1, 1);
 
-		for (int i = 0; i < 10; ++i) {
-			id = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
+		for (int i = 0; i < 120; ++i) {
+			struct isq_ui_state state = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE);
+			id = state.id;
 			isq_ui_semantic_size(id, (union isq_ui_sizes){
 				.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
 				.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
 			});
 
-			isq_ui_background_color(id, 0.05f * i, 1.f - i * 0.1, 1.f - i * 0.1, 1);
+			f32 r = (f32)(i % 75) / 100.f;
+			f32 g = (f32)(i % 50) / 100.f;
+			f32 b = (f32)(i % 25) / 100.f;
+
+			if (state.hovered) {
+				r = 1;
+				g = 0;
+				b = 0;
+			}
+
+			isq_ui_background_color(id, r, g, b, 1);
 		}
 
 		isq_ui_end();

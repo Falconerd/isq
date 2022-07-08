@@ -155,6 +155,9 @@ struct isq_ui_box {
 
 	// Computed.
 	isq_vec4 computed_rect;
+
+	float flex_size;
+	unsigned flex_count;
 };
 
 struct isq_ui_mouse {
@@ -221,7 +224,7 @@ static struct isq_ui_state isq_ui_interact(unsigned id)
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (box->flags & ISQ_UI_BOX_FLAG_HOVERABLE) {
 		if (isq_ui_mouse.position.x >= box->computed_rect.x && isq_ui_mouse.position.y >= box->computed_rect.y &&
-			isq_ui_mouse.position.x <= box->computed_rect.z && isq_ui_mouse.position.y <= box->computed_rect.w) {
+			isq_ui_mouse.position.x < box->computed_rect.z && isq_ui_mouse.position.y < box->computed_rect.w) {
 			state.hovered = 1;
 		}
 	}
@@ -241,7 +244,32 @@ static void isq_ui_render(void)
 	ISQ_UI_RECT_RENDER(isq_ui_vertex_buffer, isq_ui_vertex_buffer_count);
 }
 
-void isq_ui_compute_rect(unsigned id)
+static float isq_ui_compute_width(unsigned id, isq_vec2 origin, isq_vec2 parent_size)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 0;
+
+	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS)
+		return box->semantic_size.x.value;
+
+	// ...
+	return 0;
+}
+
+static float isq_ui_compute_height(unsigned id, isq_vec2 origin, isq_vec2 parent_size)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 0;
+
+	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS)
+		return box->semantic_size.y.value;
+
+	return 0;
+}
+
+static void isq_ui_compute_rect(unsigned id)
 {
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
 	if (box == NULL)
@@ -250,36 +278,52 @@ void isq_ui_compute_rect(unsigned id)
 	if ((box->position.x == (float)0xdeadbeef && box->position.y == (float)0xdeadbeef) || (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_NULL && box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_NULL))
 		return;
 
-	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS) {
-		if (box->parent) {
-			if (box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_ROW && box->prev_sibling) {
-				// Gotta get the child index then offset the x and z...
-				box->computed_rect.x = box->prev_sibling->computed_rect.z + box->position.x;
-				box->computed_rect.z = box->computed_rect.x + box->semantic_size.x.value;
-			} else {
-				box->computed_rect.x = box->parent->computed_rect.x + box->position.x;
-				box->computed_rect.z = box->computed_rect.x + box->semantic_size.x.value;
+	float yoffset = 0;
+
+	// TODO
+	// Perhaps a better way of approaching
+	// this is to calculate the width and
+	// height of the box, then check all the
+	// conditions and place it in the correct
+	// spot.
+	isq_vec2 origin = { 0, 0 };
+	isq_vec2 parent_size = isq_ui_dimensions;
+
+	if (box->parent) {
+		// TODO: Add padding
+		origin.x = box->parent->computed_rect.x;
+		origin.y = box->parent->computed_rect.y;
+		parent_size.x = box->parent->computed_rect.z - box->parent->computed_rect.x;
+		parent_size.y = box->parent->computed_rect.w - box->parent->computed_rect.y;
+	}
+
+	float width = isq_ui_compute_width(id, origin, parent_size);
+	float height = isq_ui_compute_height(id, origin, parent_size);
+
+	isq_vec2 position = {origin.x, origin.y};
+
+	if (box->parent && box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_ROW) {
+		if (height > box->parent->flex_size)
+			box->parent->flex_size = height;
+
+		if (box->prev_sibling) {
+			position.x = box->prev_sibling->computed_rect.z;
+
+			if (position.x >= box->parent->computed_rect.w) {
+				position.x = box->parent->computed_rect.x;
+				box->parent->flex_count += 1;
 			}
-		} else {
-			box->computed_rect.x = box->position.x;
-			box->computed_rect.z = box->position.x + box->semantic_size.x.value;
+
+			position.y += box->parent->flex_count * box->parent->flex_size;
 		}
 	}
 
-	if (box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PIXELS) {
-		if (box->parent) {
-			if (box->parent->flags & ISQ_UI_BOX_FLAG_FLEX_COLUMN && box->prev_sibling) {
-				box->computed_rect.y = box->prev_sibling->computed_rect.w + box->position.y;
-				box->computed_rect.w = box->computed_rect.y + box->semantic_size.y.value;
-			} else {
-				box->computed_rect.y = box->parent->computed_rect.y + box->position.y;
-				box->computed_rect.w = box->computed_rect.y + box->semantic_size.y.value;
-			}
-		} else {
-			box->computed_rect.y = box->position.y;
-			box->computed_rect.w = box->position.y + box->semantic_size.y.value;
-		}
-	}
+	// TODO: Add other types of position... (percentage based, for example)
+	box->computed_rect.x = position.x;
+	box->computed_rect.y = position.y;
+
+	box->computed_rect.z = box->computed_rect.x + width;
+	box->computed_rect.w = box->computed_rect.y + height;
 }
 
 void isq_ui_init(float width, float height)
@@ -391,6 +435,9 @@ struct isq_ui_state isq_ui_create(enum isq_ui_box_flags flags)
 	}
 
 	box->last_child = NULL;
+
+	box->flex_size = 0;
+	box->flex_count = 0;
 
 	isq_ui_box_array_count++;
 
