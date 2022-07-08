@@ -124,6 +124,7 @@ unsigned isq_ui_flags(unsigned id, enum isq_ui_box_flags flags);
 unsigned isq_ui_semantic_size(unsigned id, union isq_ui_sizes semantic_size);
 unsigned isq_ui_position(unsigned id, float x, float y);
 unsigned isq_ui_background_color(unsigned id, float r, float g, float b, float a);
+unsigned isq_ui_border(unsigned id, float r, float g, float b, float a, float width);
 
 unsigned isq_ui_last_id(void);
 // Flexbox stuff TODO
@@ -145,6 +146,7 @@ struct isq_ui_box {
 	isq_vec2 position;
 	isq_vec4 background_color;
 	isq_vec4 border_color;
+	float border_width;
 	isq_vec4 text_color;
 
 	struct isq_ui_box *parent;
@@ -218,6 +220,49 @@ static void isq_ui_enqueue_rect(isq_vec4 rect, isq_vec4 color)
 	isq_ui_vertex_buffer_count++;
 }
 
+isq_vec4 isq_vec4_add(isq_vec4 a, isq_vec4 b)
+{
+	isq_vec4 result = {0};
+	result.x = a.x + b.x;
+	result.y = a.y + b.y;
+	result.z = a.z + b.z;
+	result.w = a.w + b.w;
+	return result;
+}
+
+isq_vec4 isq_vec4_scale(isq_vec4 a, float k)
+{
+	isq_vec4 result = {0};
+	result.x = a.x * k;
+	result.y = a.y * k;
+	result.z = a.z * k;
+	result.w = a.w * k;
+	return result;
+}
+
+static void isq_ui_enqueue_border(isq_vec4 rect, isq_vec4 color, float width)
+{
+	// Top
+	isq_vec4 border_rect = rect;
+	border_rect.y = rect.w - width;
+	isq_ui_enqueue_rect(border_rect, color);
+
+	// Bottom
+	border_rect.y = rect.y;
+	border_rect.w = rect.y + width;
+	isq_ui_enqueue_rect(border_rect, color);
+
+	// Left
+	border_rect.z = rect.x + width;
+	border_rect.w = rect.w;
+	isq_ui_enqueue_rect(border_rect, color);
+
+	// Right
+	border_rect.x = rect.z - width;
+	border_rect.z = rect.z;
+	isq_ui_enqueue_rect(border_rect, color);
+}
+
 static struct isq_ui_state isq_ui_interact(unsigned id)
 {
 	struct isq_ui_state state = { .id = id };
@@ -238,6 +283,10 @@ static void isq_ui_render(void)
 		struct isq_ui_box *box = isq_ui_box_array_get(i);
 		if (box->flags & ISQ_UI_BOX_FLAG_DRAW_BACKGROUND) {
 			isq_ui_enqueue_rect(box->computed_rect, box->background_color);
+		}
+
+		if (box->flags & ISQ_UI_BOX_FLAG_DRAW_BORDER) {
+			isq_ui_enqueue_border(box->computed_rect, box->border_color, box->border_width);
 		}
 	}
 
@@ -263,8 +312,11 @@ static float isq_ui_compute_height(unsigned id, isq_vec2 origin, isq_vec2 parent
 	if (!box)
 		return 0;
 
-	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS)
+	if (box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PIXELS)
 		return box->semantic_size.y.value;
+
+	if (box->semantic_size.y.type == ISQ_UI_SIZE_TYPE_PERCENT)
+		return parent_size.y * box->semantic_size.y.value;
 
 	return 0;
 }
@@ -309,7 +361,7 @@ static void isq_ui_compute_rect(unsigned id)
 		if (box->prev_sibling) {
 			position.x = box->prev_sibling->computed_rect.z;
 
-			if (position.x >= box->parent->computed_rect.w) {
+			if (position.x >= box->parent->computed_rect.z) {
 				position.x = box->parent->computed_rect.x;
 				box->parent->flex_count += 1;
 			}
@@ -487,6 +539,17 @@ unsigned isq_ui_background_color(unsigned id, float r, float g, float b, float a
 		return 1;
 
 	box->background_color = (isq_vec4){ r, g, b, a };
+	return 0;
+}
+
+unsigned isq_ui_border(unsigned id, float r, float g, float b, float a, float width)
+{
+	struct isq_ui_box *box = isq_ui_box_array_get(id);
+	if (!box)
+		return 1;
+
+	box->border_color = (isq_vec4){ r, g, b, a };
+	box->border_width = width;
 	return 0;
 }
 

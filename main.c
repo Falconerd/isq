@@ -305,20 +305,22 @@ int main(void)
 		isq_ui_begin(mouse_position.x, mouse_position.y);
 
 		u32 id = isq_ui_flexbox(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND).id;
-		isq_ui_position(id, 0, 0);
+		isq_ui_position(id, root_pos.x, root_pos.y);
 		isq_ui_semantic_size(id, (union isq_ui_sizes){
 			.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
-			.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 500 },
+			.y = { .type = ISQ_UI_SIZE_TYPE_PERCENT, .value = 0.9 },
 		});
 		isq_ui_background_color(id, 1, 1, 1, 1);
 
 		for (int i = 0; i < 60; ++i) {
-			struct isq_ui_state state = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE);
+			struct isq_ui_state state = isq_ui_box(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE | ISQ_UI_BOX_FLAG_DRAW_BORDER);
 			id = state.id;
 			isq_ui_semantic_size(id, (union isq_ui_sizes){
 				.x = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
 				.y = { .type = ISQ_UI_SIZE_TYPE_PIXELS, .value = 50 },
 			});
+
+			isq_ui_border(id, 1, 1, 1, 0.2, 3);
 
 			f32 r = (f32)(i % 75) / 100.f;
 			f32 g = (f32)(i % 50) / 100.f;
