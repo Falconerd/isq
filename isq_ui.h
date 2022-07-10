@@ -127,12 +127,23 @@ unsigned isq_ui_background_color(unsigned id, float r, float g, float b, float a
 unsigned isq_ui_border(unsigned id, float r, float g, float b, float a, float width);
 
 unsigned isq_ui_last_id(void);
+
 // Flexbox stuff TODO
 // Flexbox is a layer built on top of isq_ui_box
 // that allows you to define a flexible
 // layout. It's based on CSS's flexbox.
 struct isq_ui_state isq_ui_flexbox(enum isq_ui_box_flags flags);
 struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags);
+
+// Premade components.
+
+// Buttons by default are clickable, hoverable,
+// and draw a background. These can be cancelled
+// out by passing the same flags in.
+// For example:
+// isq_ui_button(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND)
+// will now NOT draw a background.
+struct isq_ui_state isq_ui_button(const char *text, enum isq_ui_box_flags flags);
 
 #endif
 
@@ -253,8 +264,9 @@ static void isq_ui_enqueue_border(isq_vec4 rect, isq_vec4 color, float width)
 	isq_ui_enqueue_rect(border_rect, color);
 
 	// Left
+	border_rect.y = rect.y + width;
 	border_rect.z = rect.x + width;
-	border_rect.w = rect.w;
+	border_rect.w = rect.w - width;
 	isq_ui_enqueue_rect(border_rect, color);
 
 	// Right
@@ -267,6 +279,7 @@ static struct isq_ui_state isq_ui_interact(unsigned id)
 {
 	struct isq_ui_state state = { .id = id };
 	struct isq_ui_box *box = isq_ui_box_array_get(id);
+
 	if (box->flags & ISQ_UI_BOX_FLAG_HOVERABLE) {
 		if (isq_ui_mouse.position.x >= box->computed_rect.x && isq_ui_mouse.position.y >= box->computed_rect.y &&
 			isq_ui_mouse.position.x < box->computed_rect.z && isq_ui_mouse.position.y < box->computed_rect.w) {
@@ -281,6 +294,7 @@ static void isq_ui_render(void)
 {
 	for (unsigned i = 0; i < isq_ui_box_array_count; ++i) {
 		struct isq_ui_box *box = isq_ui_box_array_get(i);
+
 		if (box->flags & ISQ_UI_BOX_FLAG_DRAW_BACKGROUND) {
 			isq_ui_enqueue_rect(box->computed_rect, box->background_color);
 		}
@@ -573,6 +587,21 @@ struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags)
 	struct isq_ui_state state = isq_ui_create(flags);
 
 	isq_ui_position(state.id, 0, 0);
+
+	return state;
+}
+
+void isq_ui_text(const char *text)
+{
+	// TODO
+}
+
+struct isq_ui_state isq_ui_button(const char *text, enum isq_ui_box_flags flags)
+{
+	enum isq_ui_box_flags default_flags = ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE | ISQ_UI_BOX_FLAG_CLICKABLE;
+	struct isq_ui_state state = isq_ui_box(flags ^ default_flags);
+
+	isq_ui_text(text);
 
 	return state;
 }
