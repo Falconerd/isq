@@ -50,6 +50,7 @@ typedef union isq_vec3 {
 
 typedef union isq_vec4 {
 	struct { float x, y, z, w; };
+	float data[4];
 } isq_vec4;
 
 // Header section.
@@ -143,7 +144,7 @@ struct isq_ui_state isq_ui_box(enum isq_ui_box_flags flags);
 // For example:
 // isq_ui_button(ISQ_UI_BOX_FLAG_DRAW_BACKGROUND)
 // will now NOT draw a background.
-struct isq_ui_state isq_ui_button(const char *text, enum isq_ui_box_flags flags);
+struct isq_ui_state isq_ui_button(const char *text, float *background_color, float *hover_color, enum isq_ui_box_flags flags);
 
 #endif
 
@@ -315,6 +316,9 @@ static float isq_ui_compute_width(unsigned id, isq_vec2 origin, isq_vec2 parent_
 
 	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PIXELS)
 		return box->semantic_size.x.value;
+
+	if (box->semantic_size.x.type == ISQ_UI_SIZE_TYPE_PERCENT)
+		return parent_size.x * box->semantic_size.x.value;
 
 	// ...
 	return 0;
@@ -596,11 +600,22 @@ void isq_ui_text(const char *text)
 	// TODO
 }
 
-struct isq_ui_state isq_ui_button(const char *text, enum isq_ui_box_flags flags)
+struct isq_ui_state isq_ui_button(const char *text, float *background_color, float *hover_color, enum isq_ui_box_flags flags)
 {
 	enum isq_ui_box_flags default_flags = ISQ_UI_BOX_FLAG_DRAW_BACKGROUND | ISQ_UI_BOX_FLAG_HOVERABLE | ISQ_UI_BOX_FLAG_CLICKABLE;
-	struct isq_ui_state state = isq_ui_box(flags ^ default_flags);
+	flags ^= default_flags;
+	struct isq_ui_state state = isq_ui_box(flags);
 
+	isq_ui_position(state.id, 0, 0);
+	isq_ui_semantic_size(state.id, (union isq_ui_sizes){
+		.x = { .type = ISQ_UI_SIZE_TYPE_TEXT_CONTENT },
+		.y = { .type = ISQ_UI_SIZE_TYPE_TEXT_CONTENT },
+	});
+
+	if (state.hovered)
+		isq_ui_background_color(state.id, hover_color[0], hover_color[1], hover_color[2], hover_color[3]);
+	else
+		isq_ui_background_color(state.id, background_color[0], background_color[1], background_color[2], background_color[3]);
 	isq_ui_text(text);
 
 	return state;
