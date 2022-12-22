@@ -4,6 +4,8 @@
 
 The isq_ui library is a simple immediate-mode UI library that is working, but not feature rich.
 
+The implementation is based off a series of articles by Ryan Fleury https://www.rfleury.com/p/ui-part-1-the-interaction-medium
+
 It's based on the FlexBox system from HTML, but also handles absolute and relative positioning.
 
 There is element wrapping working in both row and column types of flex.
