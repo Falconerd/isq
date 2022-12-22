@@ -13,3 +13,7 @@ There is text, but no text wrapping.
 There is vertical scrolling, but not horizontal scrolling.
 
 The user must supply a rendering function, see main.c for an example.
+
+## Memory Allocators - isq_mem.h
+
+Not currently usable.
